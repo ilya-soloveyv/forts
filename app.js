@@ -1,23 +1,31 @@
 const express = require('express')
 const app = express()
-const CronJob = require('cron').CronJob;
+const CronJob = require('cron').CronJob
 const fetchUrl = require("fetch").fetchUrl
+const parseString = require('xml2js').parseString
+app.set('view engine', 'pug')
+
+const data = {}
+data.usd = 0
+data.rts = 0
 
 app.get('/', (req, res) => {
-  res.send('forts')
+  res.render('hello', data)
 })
 
-new CronJob('*/1 * * * *', async function() {
-  console.log('--------------------------------')
-  console.log(new Date())
-  fetchUrl("https://www.cbr-xml-daily.ru/daily_json.js", function(error, meta, body){
-    var data = JSON.parse(body)
-    console.log(data.Valute.USD.Value);
+new CronJob('*/5 * * * * *', async function() {
+  fetchUrl("http://www.cbr.ru/scripts/XML_daily.asp", function(error, meta, body){
+    parseString(body, function (err, result) {
+      result.ValCurs.Valute.forEach(element => {
+        if (element.CharCode[0] == 'USD') {
+          data.usd = parseFloat(element.Value[0].replace(',', '.'))
+        }
+      })
+    })
   })
-
   fetchUrl("https://iss.moex.com/iss/engines/futures/markets/forts/boards/RFUD/securities/RIU9.jsonp", function(error, meta, body){
-    var data = JSON.parse(body)
-    console.log(data.marketdata.data[0][8]);
+    var result = JSON.parse(body)
+    data.rts = result.marketdata.data[0][8]
   })
 }, null, true, 'America/Los_Angeles')
 
